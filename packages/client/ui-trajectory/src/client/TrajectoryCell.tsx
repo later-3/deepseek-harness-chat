@@ -43,6 +43,7 @@ const TAG_CLASS: Record<TrajectoryCellKind, string | undefined> = {
 export function TrajectoryCell({
   index,
   kind,
+  kindLabel,
   text,
   inputDetail: _inputDetail,
   promptDetail: _promptDetail,
@@ -75,7 +76,7 @@ export function TrajectoryCell({
     <div className={rootClass} data-kind={kind} data-selected={selected || undefined} {...rest}>
       <span className={css.index}>#{index}</span>
       <span className={css.tagSlot}>
-        <span className={[css.tag, TAG_CLASS[kind]].filter((c): c is string => c !== undefined).join(' ')}>{KIND_LABEL[kind]}</span>
+        <span className={[css.tag, TAG_CLASS[kind]].filter((c): c is string => c !== undefined).join(' ')}>{kindLabel ?? KIND_LABEL[kind]}</span>
       </span>
       <span className={css.text}>{text}</span>
       <span className={css.trailing}>

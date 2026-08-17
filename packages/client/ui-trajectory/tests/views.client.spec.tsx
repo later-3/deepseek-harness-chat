@@ -80,6 +80,8 @@ function historySnapshot(
   const trajectory: TrajectorySnapshot = {
     eventNodes: nodes,
     eventLocations: new Map(),
+    callLocations: new Map(),
+    callLabels: new Map(),
     requests: [],
     callSchemas: new Map(),
     partial: null,

@@ -49,6 +49,7 @@ function recordSources(
     turn === null ? 'between turns' : `turn ${turn}`,
     group,
     cell.kind,
+    cell.kindLabel ?? '',
     cell.kind === 'message' ? 'assistant' : '',
     cell.text,
     cell.previewMarkdown ?? '',

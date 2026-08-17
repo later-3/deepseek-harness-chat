@@ -40,6 +40,8 @@ export interface TrajectoryCellProps extends HTMLAttributes<HTMLDivElement> {
   /** Projection-stable identity when no single source event owns the record lifecycle. */
   recordId?: string
   kind: TrajectoryCellKind
+  /** Optional semantic tag text; the record kind still owns color and behavior. */
+  kindLabel?: string
   /** Non-Markdown summary or prefix; CSS ellipsis when it overflows. */
   text: string
   /** Raw Markdown source converted into the single-line summary at its consumer. */

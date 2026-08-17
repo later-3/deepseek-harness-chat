@@ -28,6 +28,8 @@ export type TrajectoryContribution =
   | {
     readonly kind: 'tool'
     readonly root: ToolCallBlock
+    /** Optional display labels keyed by this root or one of its descendant call IDs. */
+    readonly callLabels?: ReadonlyMap<string, string>
   }
   | {
     readonly kind: 'request-header'
@@ -61,6 +63,10 @@ export interface TrajectoryConversationViewNode extends ConversationViewNode {
 export interface TrajectorySnapshot {
   readonly eventNodes: readonly ConversationNode[]
   readonly eventLocations: ReadonlyMap<number, ConversationLocation>
+  /** Owning Conversation Location for each independently contributed root call. */
+  readonly callLocations: ReadonlyMap<string, ConversationLocation>
+  /** Optional semantic display labels keyed by root or descendant call ID. */
+  readonly callLabels: ReadonlyMap<string, string>
   readonly requests: readonly RequestView[]
   readonly callSchemas: ReadonlyMap<string, ConversationPromptSnapshot['tools'][number]>
   readonly partial: PartialAssistant | null

@@ -146,6 +146,8 @@ export function TrajectoryView({
   const hasOlderHistory = useSession(snapshot => snapshot.hasMore)
   const nodes = inspection.eventNodes
   const eventLocations = inspection.eventLocations
+  const callLocations = inspection.callLocations
+  const callLabels = inspection.callLabels
   const historyBaseSeq = nodes[0]?.seq ?? 0
   const partial = inspection.partial
   const runningCalls = inspection.runningCalls
@@ -256,6 +258,8 @@ export function TrajectoryView({
     const turns = deriveTrajectoryLayout({
       nodes,
       eventLocations,
+      callLocations,
+      callLabels,
       partial: partialTurn === null || partialStep === null
         ? null
         : { turn: partialTurn, step: partialStep, blocks: [] },
@@ -265,7 +269,7 @@ export function TrajectoryView({
     })
     return { turns, lastIndex: lastCellIndex(turns) }
   }, [
-    nodes, eventLocations, partialTurn, partialStep,
+    nodes, eventLocations, callLocations, callLabels, partialTurn, partialStep,
     runningCalls, requests, callSchemas,
   ])
   const timelinePartialSignature = partialStructureSignature(partial)

@@ -57,6 +57,20 @@ describe('TrajectoryCell', () => {
     expect(screen.getByText('5,000 ms')).toBeTruthy()
   })
 
+  it('uses an optional semantic tag without changing the record kind', () => {
+    const { container } = render(
+      <TrajectoryCell
+        index={7}
+        kind="subtool"
+        kindLabel="AGENT"
+        text="Planner"
+        timeSeconds={1}
+      />,
+    )
+    expect(screen.getByText('AGENT')).toBeTruthy()
+    expect(container.querySelector('[data-kind]')?.getAttribute('data-kind')).toBe('subtool')
+  })
+
   it('Message rows expose Input / Output / Think metric columns before time', () => {
     const { container } = render(
       <TrajectoryCell

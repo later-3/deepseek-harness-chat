@@ -17,6 +17,18 @@ import {
 
 afterEach(cleanup)
 
+function stepLocation(turn: number, step: number): ConversationLocation {
+  const data = { get: () => undefined }
+  const stepRecord = {
+    turn, step, start: undefined, end: undefined, status: 'open' as const, data,
+  }
+  const turnRecord = {
+    turn, start: undefined, end: undefined, status: 'open' as const,
+    steps: [stepRecord], data,
+  }
+  return { kind: 'step', turn: turnRecord, step: stepRecord }
+}
+
 describe('TrajectoryTurnHeader', () => {
   it('renders Turn N and the four metric column labels', () => {
     render(<TrajectoryTurnHeader turn={1} />)
@@ -56,6 +68,77 @@ describe('TrajectoryTurn', () => {
 })
 
 describe('deriveTrajectoryLayout', () => {
+  it('places an independent settled call in its contributed step with semantic labels', () => {
+    const nodes = [
+      {
+        kind: 'user', seq: 1, time: 1_000,
+        content: [{ type: 'text', text: 'run workflow' }], source: null,
+      },
+      {
+        kind: 'context', seq: 2, time: 2_000,
+        content: [{ type: 'text', text: 'runtime context' }], source: null,
+      },
+      {
+        kind: 'tool-result', seq: 3, time: 3_500, callId: 'workflow',
+        call: { name: 'Planning workflow', argsRaw: '{}' }, callTime: 2_500,
+        content: [{ type: 'text', text: 'completed' }], isError: false,
+        callView: null, resultView: null,
+        subCalls: [{
+          kind: 'tool-result', seq: 30, time: 3_200, callId: 'node-plan',
+          call: { name: 'Plan', argsRaw: '{}' }, callTime: 2_600,
+          content: [{ type: 'text', text: 'planned' }], isError: false,
+          callView: null, resultView: null, subCalls: [],
+        }],
+      },
+      {
+        kind: 'assistant', seq: 4, time: 4_000, turn: 1, step: 1,
+        blocks: [{ kind: 'text', text: 'final result' }],
+      },
+    ] as unknown as ConversationSnapshot['nodes']
+
+    const turns = deriveTrajectoryLayout({
+      nodes,
+      callLocations: new Map([['workflow', stepLocation(1, 1)]]),
+      callLabels: new Map([
+        ['workflow', 'WORKFLOW'],
+        ['node-plan', 'NODE'],
+      ]),
+      partial: null,
+      runningCalls: [],
+    })
+
+    expect(turns[0]?.groups.map(group => group.title)).toEqual(['Message', 'Step 1'])
+    expect(turns[0]?.groups.flatMap(group => group.cells)).toMatchObject([
+      { kind: 'user', previewMarkdown: 'run workflow' },
+      { kind: 'context', previewMarkdown: 'runtime context' },
+      { kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow' },
+      { kind: 'subtool', kindLabel: 'NODE', callId: 'node-plan' },
+      { kind: 'message', previewMarkdown: 'final result' },
+    ])
+  })
+
+  it('places an independent running call from its contributed step location', () => {
+    const turns = deriveTrajectoryLayout({
+      nodes: [{
+        kind: 'user', seq: 1, time: 1_000,
+        content: [{ type: 'text', text: 'run workflow' }], source: null,
+      }] as unknown as ConversationSnapshot['nodes'],
+      callLocations: new Map([['workflow', stepLocation(2, 3)]]),
+      callLabels: new Map([['workflow', 'WORKFLOW']]),
+      partial: null,
+      runningCalls: [{
+        callId: 'workflow', name: 'Planning workflow', argsRaw: '{}',
+        turn: 0, step: 0, time: 2_000, callView: null, subCalls: [],
+      }],
+    })
+
+    expect(turns.map(turn => turn.turn)).toEqual([1, 2])
+    expect(turns[1]?.groups).toMatchObject([{
+      title: 'Step 3',
+      cells: [{ kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow' }],
+    }])
+  })
+
   it('expands assistant blocks, hangs usage on Message, and folds call+result into Tool', () => {
     const nodes = [
       { kind: 'user', seq: 1, time: 1_000, content: [{ type: 'text', text: 'hello' }], source: null },

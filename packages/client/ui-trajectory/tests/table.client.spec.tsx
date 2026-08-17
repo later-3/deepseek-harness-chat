@@ -118,6 +118,29 @@ describe('TrajectoryTable', () => {
     expect(screen.getByText('1,500 ms', { selector: 'dd' })).toBeTruthy()
   })
 
+  it('uses an optional semantic label in the ledger and inspector', () => {
+    const turns: readonly TrajectoryTurnModel[] = [{
+      turn: 1,
+      groups: [{
+        title: 'Step 1',
+        cells: [{
+          index: 1,
+          kind: 'tool',
+          kindLabel: 'WORKFLOW',
+          text: 'Planning workflow',
+          inputDetail: '{}',
+          outputDetail: 'completed',
+          timeSeconds: 1,
+        }],
+      }],
+    }]
+
+    render(<TrajectoryTable turns={turns} {...FOLD_PROPS} />)
+    fireEvent.click(screen.getByRole('row', { name: /WORKFLOW/ }))
+
+    expect(screen.getAllByText('WORKFLOW')).toHaveLength(2)
+  })
+
   it('breaks output tokens into labeled reasoning and content rows', () => {
     render(<TrajectoryTable turns={TURNS} {...FOLD_PROPS} />)
     fireEvent.click(screen.getByRole('row', { name: /ASSISTANT/ }))

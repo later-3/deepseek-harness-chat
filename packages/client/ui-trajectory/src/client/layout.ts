@@ -36,6 +36,8 @@ export interface TrajectoryTurnModel {
 export interface TrajectoryLayoutInput {
   nodes: ConversationSnapshot['nodes']
   eventLocations?: ReadonlyMap<number, ConversationLocation>
+  callLocations?: ReadonlyMap<string, ConversationLocation>
+  callLabels?: ReadonlyMap<string, string>
   partial: ConversationSnapshot['partial']
   runningCalls: ConversationSnapshot['runningCalls']
   requests?: readonly RequestView[]
@@ -66,6 +68,14 @@ interface LaidGroup {
 
 interface TurnBucket {
   groups: LaidGroup[]
+}
+
+function semanticCallLabel(
+  callId: string,
+  labels: ReadonlyMap<string, string> | undefined,
+): Pick<TrajectoryCellProps, 'kindLabel'> {
+  const label = labels?.get(callId)
+  return label === undefined ? {} : { kindLabel: label }
 }
 
 type AssistantRequestView = Extract<RequestView, { purpose: 'assistant' }>
@@ -137,7 +147,8 @@ function inputCellDetail(node: InputNode): Pick<
  */
 export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly TrajectoryTurnModel[] {
   const {
-    nodes, eventLocations, partial, runningCalls, requests = [], callSchemas,
+    nodes, eventLocations, callLocations, callLabels,
+    partial, runningCalls, requests = [], callSchemas,
   } = input
   const resultByCall = indexResults(nodes)
   const callById = new Map<string, ToolCallBlock>(resultByCall)
@@ -389,7 +400,16 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
     }
     if (node.kind === 'assistant') {
       const laidList = withSubCalls(
-        expandAssistant(node, index + 1, prevAbsTime, resultByCall, callStartById, callById),
+        expandAssistant(
+          node,
+          index + 1,
+          prevAbsTime,
+          resultByCall,
+          callStartById,
+          callById,
+          callLabels,
+        ),
+        callLabels,
       )
       if (node.step > 0) pushStep(node.turn, node.step, laidList)
       else for (const laid of laidList) pushMessage(node.turn, laid)
@@ -430,6 +450,7 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
           cell: {
             index: ++index,
             kind: 'tool',
+            ...semanticCallLabel(node.callId, callLabels),
             sourceSeq: node.seq,
             ...(node.call !== null
               ? summarizeCall(node.call.name, node.call.argsRaw)
@@ -444,11 +465,14 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
             startedAt: finiteTime(node.callTime),
           },
         }]
-        for (const laid of expandSubCalls(node.subCalls, index)) {
+        for (const laid of expandSubCalls(node.subCalls, index, callLabels)) {
           laidList.push(laid)
           index = laid.cell.index
         }
-        pushStep(0, 1, laidList)
+        const location = callLocations?.get(node.callId)
+        if (location?.kind === 'step') {
+          pushStep(location.turn.turn, location.step.step, laidList)
+        } else pushStep(0, 1, laidList)
       }
       prevAbsTime = finiteTime(node.time) ?? prevAbsTime
     }
@@ -459,15 +483,19 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
       kind: 'assistant', seq: Number.MAX_SAFE_INTEGER, time: 0,
       turn: partial.turn, step: partial.step, blocks: partial.blocks,
     }
-    const laidList = withSubCalls(expandAssistant(
-      fake,
-      index + 1,
-      prevAbsTime,
-      resultByCall,
-      callStartById,
-      callById,
-      { streaming: true },
-    ))
+    const laidList = withSubCalls(
+      expandAssistant(
+        fake,
+        index + 1,
+        prevAbsTime,
+        resultByCall,
+        callStartById,
+        callById,
+        callLabels,
+        { streaming: true },
+      ),
+      callLabels,
+    )
     if (partial.step > 0) pushStep(partial.turn, partial.step, laidList)
     else for (const laid of laidList) pushMessage(partial.turn, laid)
     const last = laidList[laidList.length - 1]
@@ -485,6 +513,7 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
       cell: {
         index: ++index,
         kind: 'tool',
+        ...semanticCallLabel(call.callId, callLabels),
         ...summarizeCall(call.name, call.argsRaw),
         inputDetail: call.argsRaw,
         callId: call.callId,
@@ -492,11 +521,14 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
         startedAt: finiteTime(call.time),
       },
     }]
-    for (const laid of expandSubCalls(call.subCalls, index)) {
+    for (const laid of expandSubCalls(call.subCalls, index, callLabels)) {
       laidList.push(laid)
       index = laid.cell.index
     }
-    if (call.step > 0) pushStep(call.turn, call.step, laidList)
+    const location = callLocations?.get(call.callId)
+    if (location?.kind === 'step') {
+      pushStep(location.turn.turn, location.step.step, laidList)
+    } else if (call.step > 0) pushStep(call.turn, call.step, laidList)
     else for (const laid of laidList) pushMessage(call.turn, laid)
   }
 
@@ -670,6 +702,7 @@ function expandAssistant(
   results: Map<string, ToolResultNode>,
   callStarts: ReadonlyMap<string, number>,
   calls: ReadonlyMap<string, ToolCallBlock>,
+  callLabels?: ReadonlyMap<string, string>,
   opts?: { streaming?: boolean },
 ): LaidCell[] {
   if (opts?.streaming === true && node.blocks.length === 0) return []
@@ -737,6 +770,7 @@ function expandAssistant(
       ...(call === undefined ? {} : { subCalls: call.subCalls }),
       cell: {
         index: ++index, kind: 'tool',
+        ...semanticCallLabel(block.callId, callLabels),
         ...summarizeCall(block.name, block.argsRaw),
         inputDetail: block.argsRaw,
         callId: block.callId,
@@ -975,13 +1009,16 @@ function collectCallIds(
 
 
 /** Interleave each tool cell's nested child calls right after it, reindexing followers. */
-function withSubCalls(laidList: LaidCell[]): LaidCell[] {
+function withSubCalls(
+  laidList: LaidCell[],
+  callLabels?: ReadonlyMap<string, string>,
+): LaidCell[] {
   if (!laidList.some(laid => laid.subCalls !== undefined && laid.subCalls.length > 0)) return laidList
   const out: LaidCell[] = []
   let index = laidList[0] !== undefined ? laidList[0].cell.index - 1 : 0
   for (const laid of laidList) {
     out.push({ ...laid, cell: { ...laid.cell, index: ++index } })
-    for (const sub of expandSubCalls(laid.subCalls, index)) {
+    for (const sub of expandSubCalls(laid.subCalls, index, callLabels)) {
       out.push(sub)
       index = sub.cell.index
     }
@@ -993,6 +1030,7 @@ function withSubCalls(laidList: LaidCell[]): LaidCell[] {
 function expandSubCalls(
   subs: readonly ToolCallBlock[] | undefined,
   startIndex: number,
+  callLabels?: ReadonlyMap<string, string>,
 ): LaidCell[] {
   if (subs === undefined || subs.length === 0) return []
   const out: LaidCell[] = []
@@ -1007,6 +1045,7 @@ function expandSubCalls(
       cell: {
         index: ++index,
         kind: 'subtool',
+        ...semanticCallLabel(sub.callId, callLabels),
         callId: sub.callId,
         ...(settled
           ? (sub.call !== null
@@ -1033,7 +1072,7 @@ function expandSubCalls(
       },
     }
     out.push(laid)
-    for (const child of expandSubCalls(sub.subCalls, index)) {
+    for (const child of expandSubCalls(sub.subCalls, index, callLabels)) {
       out.push(child)
       index = child.cell.index
     }

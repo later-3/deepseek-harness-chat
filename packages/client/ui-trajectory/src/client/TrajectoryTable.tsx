@@ -45,6 +45,10 @@ const KIND_LABEL: Record<TrajectoryCellKind, string> = {
   subtool: 'SUBTOOL',
 }
 
+function kindLabel(cell: Pick<TrajectoryCellProps, 'kind' | 'kindLabel'>): string {
+  return cell.kindLabel ?? KIND_LABEL[cell.kind]
+}
+
 function ToolWrenchIcon(): ReactNode {
   return (
     <svg
@@ -2311,7 +2315,7 @@ export function TrajectoryTable({
                         ? `Collapsed ${record.collapsedSummaryKind} summary, ${record.collapsedSummary}`
                         : isRequestOnly
                           ? `Request ${request ?? ''}, compaction`
-                          : `${request === undefined ? '' : `Request ${request}, `}${KIND_LABEL[record.cell.kind]}, ${listDisplayText || 'no content'}`}
+                          : `${request === undefined ? '' : `Request ${request}, `}${kindLabel(record.cell)}, ${listDisplayText || 'no content'}`}
                       aria-selected={!isCollapsedSummary && !isRequestOnly && selectedIndex === record.cell.index}
                       data-kind={record.cell.kind}
                       data-trajectory-row-key={trajectoryVirtualRecordKey(record)}
@@ -2456,7 +2460,7 @@ export function TrajectoryTable({
                                 data-role-kind={record.cell.kind}
                               >
                                 <Tooltip
-                                  label={KIND_LABEL[record.cell.kind]}
+                                  label={kindLabel(record.cell)}
                                   side="right"
                                 >
                                   <span className={css.kindTagIcon} aria-hidden="true">
@@ -2464,7 +2468,7 @@ export function TrajectoryTable({
                                   </span>
                                 </Tooltip>
                                 <span className={css.kindTagLabel}>
-                                  {KIND_LABEL[record.cell.kind]}
+                                  {kindLabel(record.cell)}
                                 </span>
                               </span>
                             </span>
@@ -2650,7 +2654,7 @@ export function TrajectoryTable({
                                   : css[selected.cell.kind]
                       }`}
                       >
-                        {KIND_LABEL[selected.cell.kind]}
+                        {kindLabel(selected.cell)}
                       </span>
                       <span className={css.detailsLocation}>
                         {selected.cell.kind === 'compacted'

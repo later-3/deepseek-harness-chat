@@ -21,10 +21,11 @@ function contribution(
   key: string,
   anchorSeq: number,
   data: TrajectoryContribution,
+  location: TrajectoryConversationViewNode['location'] = { kind: 'session' },
 ): TrajectoryConversationViewNode {
   return {
     key, kind: key, id: key, target: 'trajectory', anchorSeq,
-    location: { kind: 'session' },
+    location,
     data,
   }
 }
@@ -63,6 +64,29 @@ function compactionRequest(startSeq: number): Extract<RequestView, { purpose: 'c
 }
 
 describe('TrajectorySnapshotBuilder', () => {
+  it('retains each independent root call location and optional semantic labels', () => {
+    const location = stepLocation(2, 3)
+    const snapshot = new TrajectorySnapshotBuilder().replace({
+      nodes: [contribution('workflow', 7, {
+        kind: 'tool',
+        root: {
+          callId: 'workflow', name: 'Planning workflow', argsRaw: '{}',
+          turn: 2, step: 3, time: 7, callView: null, subCalls: [],
+        },
+        callLabels: new Map([
+          ['workflow', 'WORKFLOW'],
+          ['node-plan', 'NODE'],
+        ]),
+      }, location)],
+    })
+
+    expect(snapshot.callLocations.get('workflow')).toBe(location)
+    expect(snapshot.callLabels).toEqual(new Map([
+      ['workflow', 'WORKFLOW'],
+      ['node-plan', 'NODE'],
+    ]))
+  })
+
   it('inherits one request header across requests without repeating its prompt change', () => {
     const prompt = {
       config: { provider: 'test', model: 'test' },

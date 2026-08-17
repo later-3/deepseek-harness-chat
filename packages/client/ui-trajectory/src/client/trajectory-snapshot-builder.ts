@@ -17,6 +17,8 @@ type ToolSchema = ConversationPromptSnapshot['tools'][number]
 export const EMPTY_TRAJECTORY_SNAPSHOT: TrajectorySnapshot = {
   eventNodes: EMPTY_LIST,
   eventLocations: new Map(),
+  callLocations: new Map(),
+  callLabels: new Map(),
   requests: EMPTY_LIST,
   callSchemas: new Map(),
   partial: null,
@@ -181,6 +183,8 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
     }
     const finalized: ConversationNode[] = []
     const eventLocations = new Map<number, TrajectoryConversationViewNode['location']>()
+    const callLocations = new Map<string, TrajectoryConversationViewNode['location']>()
+    const callLabels = new Map<string, string>()
     const requests: RequestView[] = []
     const boundaries: { seq: number; time: number }[] = []
     const turnEndings: { turn: number; time: number; error?: string }[] = []
@@ -218,6 +222,8 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
         continue
       }
       if (data.kind === 'tool') {
+        callLocations.set(data.root.callId, contribution.location)
+        for (const [callId, label] of data.callLabels ?? []) callLabels.set(callId, label)
         if ('kind' in data.root) finalized.push(data.root)
         else runningCalls.push(data.root)
         if (previousHeader !== undefined && previousHeader.seq < contribution.anchorSeq) {
@@ -248,6 +254,8 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
     return {
       eventNodes,
       eventLocations,
+      callLocations,
+      callLabels,
       requests,
       callSchemas,
       partial,
