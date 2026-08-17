@@ -18,6 +18,12 @@ A Tool contribution may provide an optional map from root or descendant call ID 
 
 The extension belongs to the existing target-specific contribution contract described by the [Trajectory assembly decision](2026-08-11-trajectory-conversation-context-assembly.md). It does not introduce a second history source, a new event family, or knowledge of any external workflow product.
 
+## Distribution and upstream sync
+
+The Chat-maintained derivative lives in the private `later-3/deepseek-harness-chat` repository. Its `origin/main` is the published source of record for derivative source, the official `deepseek-ai/deepseek-harness` repository is the read-only `upstream`, and isolated work uses `codex/*` branches. Chat runtime consumers still pin the rc.6 npm distribution and apply a reviewable patch, so this repository owns development and upstream-merge history while the Chat repository owns the deployed version, patch hash, and runtime drift check.
+
+An upstream release or relevant Trajectory change starts from `origin/main` in an isolated worktree. Maintainers first determine whether upstream provides equivalent public contribution fields; an equivalent contract retires the derivative instead of preserving it. Otherwise only Location retention and semantic display labels are replayed, followed by the affected tests, repository typecheck, bundle, lint, and documentation checks. The Chat patch, lock hash, version evidence, and browser verification update from that validated commit before the private default branch advances.
+
 ## Alternatives considered
 
 **Place every independent Tool tree after the last input.** Rejected: ordering without Conversation Location would be heuristic, would fail for multiple Steps, and would discard the ownership fact already supplied by the assembler.

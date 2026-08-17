@@ -18,6 +18,12 @@ Tool contribution 可以提供可选 map，按根调用或后代调用 ID 指定
 
 这一扩展属于 [Trajectory 组装决策](2026-08-11-trajectory-conversation-context-assembly.md)所定义的既有 target 专属 contribution 约定。它不会引入第二套 history source、新的 Event 族，也不会让 Trajectory 了解任何外部工作流产品。
 
+## 分发与上游同步
+
+Chat 维护的派生源码位于私有 `later-3/deepseek-harness-chat` 仓库。`origin/main` 是已发布派生源码的事实来源，官方 `deepseek-ai/deepseek-harness` 仓库是只读 `upstream`，隔离开发使用 `codex/*` 分支。Chat 运行时仍固定 rc.6 npm 发行包并应用可审核补丁，因此本仓库拥有开发与上游汇合历史，Chat 仓库拥有部署版本、补丁 Hash 与运行时漂移检查。
+
+上游发布版本或相关 Trajectory 变更会从`origin/main`的隔离 worktree 开始。维护者先判断上游是否提供等价的公开 contribution 字段；存在等价约定时删除派生差异，而不是继续保留。否则只重放 Location 保留和语义显示标签，再运行受影响测试、仓库 typecheck、bundle、lint 与文档检查。Chat 补丁、lock Hash、版本证据和浏览器验证从该已验证提交更新，之后私有默认分支才能前进。
+
 ## 考虑过的替代方案
 
 **把每棵独立 Tool tree 都放到最后一条输入之后。** 不予采纳：缺少 Conversation Location 时，排序只能依赖启发式规则；它无法正确处理多个 Step，也会丢弃 assembler 已提供的归属事实。
