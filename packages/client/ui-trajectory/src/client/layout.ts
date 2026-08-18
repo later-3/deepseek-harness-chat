@@ -17,6 +17,7 @@ import type {
   TrajectoryCellProps,
   TrajectorySourceBlock,
 } from './trajectory-record.ts'
+import type { TrajectoryCallPreview } from './trajectory-contract.ts'
 import { formatElapsedSeconds } from './trajectory-record.ts'
 
 /** One Message or Step group inside a turn. */
@@ -38,6 +39,7 @@ export interface TrajectoryLayoutInput {
   eventLocations?: ReadonlyMap<number, ConversationLocation>
   callLocations?: ReadonlyMap<string, ConversationLocation>
   callLabels?: ReadonlyMap<string, string>
+  callPreviews?: ReadonlyMap<string, TrajectoryCallPreview>
   partial: ConversationSnapshot['partial']
   runningCalls: ConversationSnapshot['runningCalls']
   requests?: readonly RequestView[]
@@ -147,7 +149,7 @@ function inputCellDetail(node: InputNode): Pick<
  */
 export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly TrajectoryTurnModel[] {
   const {
-    nodes, eventLocations, callLocations, callLabels,
+    nodes, eventLocations, callLocations, callLabels, callPreviews,
     partial, runningCalls, requests = [], callSchemas,
   } = input
   const resultByCall = indexResults(nodes)
@@ -408,8 +410,10 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
           callStartById,
           callById,
           callLabels,
+          callPreviews,
         ),
         callLabels,
+        callPreviews,
       )
       if (node.step > 0) pushStep(node.turn, node.step, laidList)
       else for (const laid of laidList) pushMessage(node.turn, laid)
@@ -441,7 +445,8 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
     if (node.kind === 'tool-result') {
       if (!emittedCallIds.has(node.callId)) {
         const toolName = node.call?.name
-        const resultPreview = summarizeResult(node)
+        const preview = callPreviews?.get(node.callId)
+        const resultPreview = summarizeResult(node, preview?.output)
         const laidList: LaidCell[] = [{
           absTime: finiteTime(node.callTime ?? node.time),
           ...(toolName !== undefined ? { toolName } : {}),
@@ -453,7 +458,7 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
             ...semanticCallLabel(node.callId, callLabels),
             sourceSeq: node.seq,
             ...(node.call !== null
-              ? summarizeCall(node.call.name, node.call.argsRaw)
+              ? summarizeCall(node.call.name, node.call.argsRaw, preview?.input)
               : resultAsText(resultPreview)),
             ...(node.call !== null ? { inputDetail: node.call.argsRaw } : {}),
             outputDetail: detailResult(node),
@@ -465,7 +470,7 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
             startedAt: finiteTime(node.callTime),
           },
         }]
-        for (const laid of expandSubCalls(node.subCalls, index, callLabels)) {
+        for (const laid of expandSubCalls(node.subCalls, index, callLabels, callPreviews)) {
           laidList.push(laid)
           index = laid.cell.index
         }
@@ -492,9 +497,11 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
         callStartById,
         callById,
         callLabels,
+        callPreviews,
         { streaming: true },
       ),
       callLabels,
+      callPreviews,
     )
     if (partial.step > 0) pushStep(partial.turn, partial.step, laidList)
     else for (const laid of laidList) pushMessage(partial.turn, laid)
@@ -514,14 +521,14 @@ export function deriveTrajectoryLayout(input: TrajectoryLayoutInput): readonly T
         index: ++index,
         kind: 'tool',
         ...semanticCallLabel(call.callId, callLabels),
-        ...summarizeCall(call.name, call.argsRaw),
+        ...summarizeCall(call.name, call.argsRaw, callPreviews?.get(call.callId)?.input),
         inputDetail: call.argsRaw,
         callId: call.callId,
         timeSeconds: null,
         startedAt: finiteTime(call.time),
       },
     }]
-    for (const laid of expandSubCalls(call.subCalls, index, callLabels)) {
+    for (const laid of expandSubCalls(call.subCalls, index, callLabels, callPreviews)) {
       laidList.push(laid)
       index = laid.cell.index
     }
@@ -703,6 +710,7 @@ function expandAssistant(
   callStarts: ReadonlyMap<string, number>,
   calls: ReadonlyMap<string, ToolCallBlock>,
   callLabels?: ReadonlyMap<string, string>,
+  callPreviews?: ReadonlyMap<string, TrajectoryCallPreview>,
   opts?: { streaming?: boolean },
 ): LaidCell[] {
   if (opts?.streaming === true && node.blocks.length === 0) return []
@@ -762,7 +770,10 @@ function expandAssistant(
       : durationSeconds(result.time, result.callTime)
     const callAbs = finiteTime(callStarts.get(block.callId))
     const call = calls.get(block.callId)
-    const resultPreview = result === undefined ? undefined : summarizeResult(result)
+    const preview = callPreviews?.get(block.callId)
+    const resultPreview = result === undefined
+      ? undefined
+      : summarizeResult(result, preview?.output)
     out.push({
       absTime: callAbs,
       toolName: block.name,
@@ -771,7 +782,7 @@ function expandAssistant(
       cell: {
         index: ++index, kind: 'tool',
         ...semanticCallLabel(block.callId, callLabels),
-        ...summarizeCall(block.name, block.argsRaw),
+        ...summarizeCall(block.name, block.argsRaw, preview?.input),
         inputDetail: block.argsRaw,
         callId: block.callId,
         ...(result !== undefined
@@ -1012,13 +1023,14 @@ function collectCallIds(
 function withSubCalls(
   laidList: LaidCell[],
   callLabels?: ReadonlyMap<string, string>,
+  callPreviews?: ReadonlyMap<string, TrajectoryCallPreview>,
 ): LaidCell[] {
   if (!laidList.some(laid => laid.subCalls !== undefined && laid.subCalls.length > 0)) return laidList
   const out: LaidCell[] = []
   let index = laidList[0] !== undefined ? laidList[0].cell.index - 1 : 0
   for (const laid of laidList) {
     out.push({ ...laid, cell: { ...laid.cell, index: ++index } })
-    for (const sub of expandSubCalls(laid.subCalls, index, callLabels)) {
+    for (const sub of expandSubCalls(laid.subCalls, index, callLabels, callPreviews)) {
       out.push(sub)
       index = sub.cell.index
     }
@@ -1031,13 +1043,15 @@ function expandSubCalls(
   subs: readonly ToolCallBlock[] | undefined,
   startIndex: number,
   callLabels?: ReadonlyMap<string, string>,
+  callPreviews?: ReadonlyMap<string, TrajectoryCallPreview>,
 ): LaidCell[] {
   if (subs === undefined || subs.length === 0) return []
   const out: LaidCell[] = []
   let index = startIndex
   for (const sub of subs) {
     const settled = 'kind' in sub
-    const resultPreview = settled ? summarizeResult(sub) : undefined
+    const preview = callPreviews?.get(sub.callId)
+    const resultPreview = settled ? summarizeResult(sub, preview?.output) : undefined
     const laid: LaidCell = {
       absTime: settled ? finiteTime(sub.callTime ?? sub.time) : finiteTime(sub.time),
       toolName: settled ? sub.call?.name ?? sub.callId : sub.name,
@@ -1049,9 +1063,9 @@ function expandSubCalls(
         callId: sub.callId,
         ...(settled
           ? (sub.call !== null
-            ? summarizeCall(sub.call.name, sub.call.argsRaw)
+            ? summarizeCall(sub.call.name, sub.call.argsRaw, preview?.input)
             : resultAsText(resultPreview))
-          : summarizeCall(sub.name, sub.argsRaw)),
+          : summarizeCall(sub.name, sub.argsRaw, preview?.input)),
         ...(settled
           ? (sub.call !== null ? { inputDetail: sub.call.argsRaw } : {})
           : { inputDetail: sub.argsRaw }),
@@ -1072,7 +1086,7 @@ function expandSubCalls(
       },
     }
     out.push(laid)
-    for (const child of expandSubCalls(sub.subCalls, index, callLabels)) {
+    for (const child of expandSubCalls(sub.subCalls, index, callLabels, callPreviews)) {
       out.push(child)
       index = child.cell.index
     }
@@ -1083,18 +1097,24 @@ function expandSubCalls(
 function summarizeCall(
   name: string,
   argsRaw: string,
+  preview?: string,
 ): Pick<TrajectoryCellProps, 'text' | 'previewMarkdown'> {
+  const display = preview ?? argsRaw
   return {
     text: name,
-    ...(argsRaw === '' ? {} : { previewMarkdown: argsRaw }),
+    ...(display === '' ? {} : { previewMarkdown: display }),
   }
 }
 
 function summarizeResult(
   node: ToolResultNode,
+  preview?: string,
 ): Pick<TrajectoryCellProps, 'result' | 'resultPreviewMarkdown'> {
   if (node.isError) {
     return { result: node.error?.code ?? 'error' }
+  }
+  if (preview !== undefined) {
+    return preview === '' ? { result: '' } : { result: '', resultPreviewMarkdown: preview }
   }
   for (const block of node.content) {
     if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {

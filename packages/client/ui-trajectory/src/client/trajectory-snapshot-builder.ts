@@ -5,7 +5,7 @@ import type {
   ToolCallBlock,
 } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
-  TrajectoryConversationViewNode, TrajectoryRequestHeaderState,
+  TrajectoryCallPreview, TrajectoryConversationViewNode, TrajectoryRequestHeaderState,
   TrajectorySnapshot,
 } from './trajectory-contract.ts'
 
@@ -19,6 +19,7 @@ export const EMPTY_TRAJECTORY_SNAPSHOT: TrajectorySnapshot = {
   eventLocations: new Map(),
   callLocations: new Map(),
   callLabels: new Map(),
+  callPreviews: new Map(),
   requests: EMPTY_LIST,
   callSchemas: new Map(),
   partial: null,
@@ -185,6 +186,7 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
     const eventLocations = new Map<number, TrajectoryConversationViewNode['location']>()
     const callLocations = new Map<string, TrajectoryConversationViewNode['location']>()
     const callLabels = new Map<string, string>()
+    const callPreviews = new Map<string, TrajectoryCallPreview>()
     const requests: RequestView[] = []
     const boundaries: { seq: number; time: number }[] = []
     const turnEndings: { turn: number; time: number; error?: string }[] = []
@@ -224,6 +226,7 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
       if (data.kind === 'tool') {
         callLocations.set(data.root.callId, contribution.location)
         for (const [callId, label] of data.callLabels ?? []) callLabels.set(callId, label)
+        for (const [callId, preview] of data.callPreviews ?? []) callPreviews.set(callId, preview)
         if ('kind' in data.root) finalized.push(data.root)
         else runningCalls.push(data.root)
         if (previousHeader !== undefined && previousHeader.seq < contribution.anchorSeq) {
@@ -256,6 +259,7 @@ export class TrajectorySnapshotBuilder implements ConversationViewBuilder<
       eventLocations,
       callLocations,
       callLabels,
+      callPreviews,
       requests,
       callSchemas,
       partial,

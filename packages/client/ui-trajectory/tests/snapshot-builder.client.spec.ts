@@ -64,7 +64,7 @@ function compactionRequest(startSeq: number): Extract<RequestView, { purpose: 'c
 }
 
 describe('TrajectorySnapshotBuilder', () => {
-  it('retains each independent root call location and optional semantic labels', () => {
+  it('retains each independent root call location, semantic labels, and list previews', () => {
     const location = stepLocation(2, 3)
     const snapshot = new TrajectorySnapshotBuilder().replace({
       nodes: [contribution('workflow', 7, {
@@ -77,6 +77,9 @@ describe('TrajectorySnapshotBuilder', () => {
           ['workflow', 'WORKFLOW'],
           ['node-plan', 'NODE'],
         ]),
+        callPreviews: new Map([
+          ['workflow', { input: '', output: 'completed' }],
+        ]),
       }, location)],
     })
 
@@ -84,6 +87,9 @@ describe('TrajectorySnapshotBuilder', () => {
     expect(snapshot.callLabels).toEqual(new Map([
       ['workflow', 'WORKFLOW'],
       ['node-plan', 'NODE'],
+    ]))
+    expect(snapshot.callPreviews).toEqual(new Map([
+      ['workflow', { input: '', output: 'completed' }],
     ]))
   })
 

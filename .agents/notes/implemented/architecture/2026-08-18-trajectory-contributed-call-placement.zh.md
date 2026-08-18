@@ -16,13 +16,15 @@ Trajectory Builder 为每个独立 contribution 的根调用保留其 Location�
 
 Tool contribution 可以提供可选 map，按根调用或后代调用 ID 指定语义显示标签。Layout 会把标签复制到对应记录；标签存在时，表格、检查器、无障碍行名称、tooltip 和搜索索引都会使用它。记录仍属于 `tool` 或 `subtool`；颜色、图标、折叠、嵌套、计时、选择与检查行为仍由种类决定。
 
+Tool contribution 还可以按调用 ID 提供紧凑的输入与输出预览。Layout 只在记录表行内使用这些值，同时为检查器保留原始 `argsRaw` 与 Tool Result 内容。省略预览时沿用原生摘要；显式提供空预览时隐藏该侧的行内文本，但不会删除详情。因此 contribution 控制的是展示密度，不是已记录数据。
+
 这一扩展属于 [Trajectory 组装决策](2026-08-11-trajectory-conversation-context-assembly.md)所定义的既有 target 专属 contribution 约定。它不会引入第二套 history source、新的 Event 族，也不会让 Trajectory 了解任何外部工作流产品。
 
 ## 分发与上游同步
 
 Chat 维护的派生源码位于私有 `later-3/deepseek-harness-chat` 仓库。`origin/main` 是已发布派生源码的事实来源，官方 `deepseek-ai/deepseek-harness` 仓库是只读 `upstream`，隔离开发使用 `codex/*` 分支。Chat 运行时仍固定 rc.6 npm 发行包并应用可审核补丁，因此本仓库拥有开发与上游汇合历史，Chat 仓库拥有部署版本、补丁 Hash 与运行时漂移检查。
 
-上游发布版本或相关 Trajectory 变更会从`origin/main`的隔离 worktree 开始。维护者先判断上游是否提供等价的公开 contribution 字段；存在等价约定时删除派生差异，而不是继续保留。否则只重放 Location 保留和语义显示标签，再运行受影响测试、仓库 typecheck、bundle、lint 与文档检查。Chat 补丁、lock Hash、版本证据和浏览器验证从该已验证提交更新，之后私有默认分支才能前进。
+上游发布版本或相关 Trajectory 变更会从`origin/main`的隔离 worktree 开始。维护者先判断上游是否提供等价的公开 contribution 字段；存在等价约定时删除派生差异，而不是继续保留。否则只重放 Location 保留、语义显示标签和紧凑调用预览，再运行受影响测试、仓库 typecheck、bundle、lint 与文档检查。Chat 补丁、lock Hash、版本证据和浏览器验证从该已验证提交更新，之后私有默认分支才能前进。
 
 ## 考虑过的替代方案
 
@@ -34,12 +36,14 @@ Chat 维护的派生源码位于私有 `later-3/deepseek-harness-chat` 仓库。
 
 **只把角色写入 Tool 名称。** 不予采纳：事件标签、无障碍名称、检查器、tooltip 与搜索词汇仍只会报告通用种类。
 
+**把 contribution 的完整 payload 放进每一条记录表行。** 不予采纳：重复展示计划与执行结果会让按时间阅读的记录表难以使用，而检查器已经负责完整的输入与输出详情。
+
 ## 验证
 
-Builder 测试固定根 Location 与语义标签的保留行为。Layout 测试固定运行中及已完成调用的 Step 定位、后代顺序与标签投影。Cell 和表格测试固定可见标签与检查器，同时确认底层仍为 `tool` 或 `subtool` 种类。既有测试覆盖未提供两个可选输入的 contribution，因此原有行为保持不变。
+Builder 测试固定根 Location、语义标签与紧凑预览的保留行为。Layout 测试固定运行中及已完成调用的 Step 定位、后代顺序、标签投影、紧凑行文本与保持不变的检查器详情。Cell 和表格测试固定可见标签与检查器，同时确认底层仍为 `tool` 或 `subtool` 种类。既有测试覆盖未提供可选 map 的 contribution，因此保留原生行为。
 
 ## 后果
 
 外部 Definition 可以在真实 Step 位置投影忠实的业务调用树，无需伪造 Conversation Event，也无需 fork 完整 Trajectory 视图。标签刻意仅用于表现，因此集成不能借它改变层级或交互规则。
 
-快照现在多携带两个小型 map，其规模与独立 contribution 的调用树成正比。同一快照中的调用 ID 共用一个标签命名空间；Definition 作者必须使用稳定且无冲突的 ID，并把缺失 Location 或标签视为通用回退情形。
+快照现在多携带三个小型 map，其规模与独立 contribution 的调用树成正比。同一快照中的 Location、标签和预览元数据共用一个调用 ID 命名空间；Definition 作者必须使用稳定且无冲突的 ID，并把缺失元数据视为原生回退情形。

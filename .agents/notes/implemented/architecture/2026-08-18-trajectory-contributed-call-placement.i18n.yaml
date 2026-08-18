@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-18-trajectory-contributed-call-placement.md
-2026-08-18-trajectory-contributed-call-placement.md: 7ea460ab6ac6f28ace2d58147cd9c3bcf474a79c
-2026-08-18-trajectory-contributed-call-placement.zh.md: f33154a21b035f781da3c05d286b903412ac0706
+2026-08-18-trajectory-contributed-call-placement.md: 8f9ee585f474ae48cd9a4f66a9024c49c05e543f
+2026-08-18-trajectory-contributed-call-placement.zh.md: 4d72381fba69e2f2d5bdfe6b0c7764bfd866973f

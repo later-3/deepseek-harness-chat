@@ -16,13 +16,15 @@ The Trajectory Builder retains the contribution Location for every independently
 
 A Tool contribution may provide an optional map from root or descendant call ID to a semantic display label. Layout copies the label onto the corresponding ledger record, and the table, inspector, accessible row name, tooltip, and search index use it when present. The record remains `tool` or `subtool`; kind still owns color, icon, folding, nesting, timing, selection, and inspection behavior.
 
+A Tool contribution may also provide compact input and output previews per call ID. Layout uses only those values in the ledger row while preserving the original `argsRaw` and Tool Result content for the inspector. An omitted preview retains the native summary; an explicitly empty preview suppresses that side of the row without deleting its detail. The contribution therefore controls presentation density, not recorded data.
+
 The extension belongs to the existing target-specific contribution contract described by the [Trajectory assembly decision](2026-08-11-trajectory-conversation-context-assembly.md). It does not introduce a second history source, a new event family, or knowledge of any external workflow product.
 
 ## Distribution and upstream sync
 
 The Chat-maintained derivative lives in the private `later-3/deepseek-harness-chat` repository. Its `origin/main` is the published source of record for derivative source, the official `deepseek-ai/deepseek-harness` repository is the read-only `upstream`, and isolated work uses `codex/*` branches. Chat runtime consumers still pin the rc.6 npm distribution and apply a reviewable patch, so this repository owns development and upstream-merge history while the Chat repository owns the deployed version, patch hash, and runtime drift check.
 
-An upstream release or relevant Trajectory change starts from `origin/main` in an isolated worktree. Maintainers first determine whether upstream provides equivalent public contribution fields; an equivalent contract retires the derivative instead of preserving it. Otherwise only Location retention and semantic display labels are replayed, followed by the affected tests, repository typecheck, bundle, lint, and documentation checks. The Chat patch, lock hash, version evidence, and browser verification update from that validated commit before the private default branch advances.
+An upstream release or relevant Trajectory change starts from `origin/main` in an isolated worktree. Maintainers first determine whether upstream provides equivalent public contribution fields; an equivalent contract retires the derivative instead of preserving it. Otherwise only Location retention, semantic display labels, and compact call previews are replayed, followed by the affected tests, repository typecheck, bundle, lint, and documentation checks. The Chat patch, lock hash, version evidence, and browser verification update from that validated commit before the private default branch advances.
 
 ## Alternatives considered
 
@@ -34,12 +36,14 @@ An upstream release or relevant Trajectory change starts from `origin/main` in a
 
 **Encode the role only in the Tool name.** Rejected: the event tag, accessible name, inspector, tooltip, and search vocabulary would still report only the generic kind.
 
+**Put the complete contributed payload in each ledger row.** Rejected: repeated plans and execution results make the chronological ledger unreadable even though the inspector already owns full Input and Output detail.
+
 ## Verification
 
-Builder tests retain root Locations and semantic labels. Layout tests pin running and settled Step placement, descendant ordering, and label projection. Cell and table tests pin the visible tag and inspector while preserving the underlying `tool` or `subtool` kind. Existing tests cover contributions that omit both optional inputs and therefore retain the prior behavior.
+Builder tests retain root Locations, semantic labels, and compact previews. Layout tests pin running and settled Step placement, descendant ordering, label projection, compact row text, and unchanged inspector detail. Cell and table tests pin the visible tag and inspector while preserving the underlying `tool` or `subtool` kind. Existing tests cover contributions that omit the optional maps and therefore retain the native behavior.
 
 ## Consequences
 
 External Definitions can project a truthful domain call tree at its real Step position without forging Conversation events or forking the complete Trajectory view. A label is deliberately presentation-only, so integrations cannot use it to change hierarchy or interaction rules.
 
-The snapshot now carries two small maps proportional to independently contributed call trees. Call IDs within one snapshot share a label namespace; Definition authors must use stable, collision-free IDs and treat a missing Location or label as the generic fallback.
+The snapshot now carries three small maps proportional to independently contributed call trees. Call IDs within one snapshot share one namespace for Location, label, and preview metadata; Definition authors must use stable, collision-free IDs and treat missing metadata as the native fallback.

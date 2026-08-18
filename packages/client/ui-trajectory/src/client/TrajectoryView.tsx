@@ -148,6 +148,7 @@ export function TrajectoryView({
   const eventLocations = inspection.eventLocations
   const callLocations = inspection.callLocations
   const callLabels = inspection.callLabels
+  const callPreviews = inspection.callPreviews
   const historyBaseSeq = nodes[0]?.seq ?? 0
   const partial = inspection.partial
   const runningCalls = inspection.runningCalls
@@ -260,6 +261,7 @@ export function TrajectoryView({
       eventLocations,
       callLocations,
       callLabels,
+      callPreviews,
       partial: partialTurn === null || partialStep === null
         ? null
         : { turn: partialTurn, step: partialStep, blocks: [] },
@@ -269,7 +271,7 @@ export function TrajectoryView({
     })
     return { turns, lastIndex: lastCellIndex(turns) }
   }, [
-    nodes, eventLocations, callLocations, callLabels, partialTurn, partialStep,
+    nodes, eventLocations, callLocations, callLabels, callPreviews, partialTurn, partialStep,
     runningCalls, requests, callSchemas,
   ])
   const timelinePartialSignature = partialStructureSignature(partial)

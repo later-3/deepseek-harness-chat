@@ -103,6 +103,10 @@ describe('deriveTrajectoryLayout', () => {
         ['workflow', 'WORKFLOW'],
         ['node-plan', 'NODE'],
       ]),
+      callPreviews: new Map([
+        ['workflow', { input: '', output: '3 nodes completed' }],
+        ['node-plan', { input: '', output: 'plan ready' }],
+      ]),
       partial: null,
       runningCalls: [],
     })
@@ -111,10 +115,20 @@ describe('deriveTrajectoryLayout', () => {
     expect(turns[0]?.groups.flatMap(group => group.cells)).toMatchObject([
       { kind: 'user', previewMarkdown: 'run workflow' },
       { kind: 'context', previewMarkdown: 'runtime context' },
-      { kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow' },
-      { kind: 'subtool', kindLabel: 'NODE', callId: 'node-plan' },
+      {
+        kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow',
+        resultPreviewMarkdown: '3 nodes completed',
+        inputDetail: '{}', outputDetail: 'completed',
+      },
+      {
+        kind: 'subtool', kindLabel: 'NODE', callId: 'node-plan',
+        resultPreviewMarkdown: 'plan ready',
+        inputDetail: '{}', outputDetail: 'planned',
+      },
       { kind: 'message', previewMarkdown: 'final result' },
     ])
+    const calls = turns[0]?.groups.flatMap(group => group.cells).filter(cell => 'callId' in cell)
+    expect(calls?.every(cell => cell.previewMarkdown === undefined)).toBe(true)
   })
 
   it('places an independent running call from its contributed step location', () => {
@@ -125,6 +139,7 @@ describe('deriveTrajectoryLayout', () => {
       }] as unknown as ConversationSnapshot['nodes'],
       callLocations: new Map([['workflow', stepLocation(2, 3)]]),
       callLabels: new Map([['workflow', 'WORKFLOW']]),
+      callPreviews: new Map([['workflow', { input: '' }]]),
       partial: null,
       runningCalls: [{
         callId: 'workflow', name: 'Planning workflow', argsRaw: '{}',
@@ -135,8 +150,12 @@ describe('deriveTrajectoryLayout', () => {
     expect(turns.map(turn => turn.turn)).toEqual([1, 2])
     expect(turns[1]?.groups).toMatchObject([{
       title: 'Step 3',
-      cells: [{ kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow' }],
+      cells: [{
+        kind: 'tool', kindLabel: 'WORKFLOW', callId: 'workflow',
+        inputDetail: '{}',
+      }],
     }])
+    expect(turns[1]?.groups[0]?.cells[0]?.previewMarkdown).toBeUndefined()
   })
 
   it('expands assistant blocks, hangs usage on Message, and folds call+result into Tool', () => {

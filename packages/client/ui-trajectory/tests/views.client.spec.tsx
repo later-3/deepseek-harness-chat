@@ -82,6 +82,7 @@ function historySnapshot(
     eventLocations: new Map(),
     callLocations: new Map(),
     callLabels: new Map(),
+    callPreviews: new Map(),
     requests: [],
     callSchemas: new Map(),
     partial: null,

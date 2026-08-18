@@ -13,6 +13,12 @@ export interface TrajectoryRequestHeaderState {
   readonly location: ConversationLocation
 }
 
+/** Optional compact list text for a contributed call; details still use the original payload. */
+export interface TrajectoryCallPreview {
+  readonly input?: string
+  readonly output?: string
+}
+
 /** One independently assembled contribution to the legacy Trajectory ledger. */
 export type TrajectoryContribution =
   | {
@@ -30,6 +36,8 @@ export type TrajectoryContribution =
     readonly root: ToolCallBlock
     /** Optional display labels keyed by this root or one of its descendant call IDs. */
     readonly callLabels?: ReadonlyMap<string, string>
+    /** Optional compact list previews; details keep the original input and output payloads. */
+    readonly callPreviews?: ReadonlyMap<string, TrajectoryCallPreview>
   }
   | {
     readonly kind: 'request-header'
@@ -67,6 +75,8 @@ export interface TrajectorySnapshot {
   readonly callLocations: ReadonlyMap<string, ConversationLocation>
   /** Optional semantic display labels keyed by root or descendant call ID. */
   readonly callLabels: ReadonlyMap<string, string>
+  /** Optional list previews keyed by root or descendant call ID. */
+  readonly callPreviews: ReadonlyMap<string, TrajectoryCallPreview>
   readonly requests: readonly RequestView[]
   readonly callSchemas: ReadonlyMap<string, ConversationPromptSnapshot['tools'][number]>
   readonly partial: PartialAssistant | null
