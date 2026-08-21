@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Later Fork Integration
+
+This repository is Chat's managed DeepSeek Harness fork. `origin` is
+`https://github.com/later-3/deepseek-harness-chat`; the official
+`deepseek-ai/deepseek-harness` remote is read-only and named `upstream`. Chat
+development integrates `codex/chat-trajectory-location-rc6`. Necessary generic
+host changes belong in this repository's source and tests, not in a downstream
+patch against generated `lib` files. Keep Chat product objects and workflow
+logic in the LifeOS Bridge and Chat backend.
+
 DeepSeek Harness is a plugin-based agent harness on vendored Cordis: **everything is a plugin**. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.
 
 ## Pre-release stance: foundation over blast radius
