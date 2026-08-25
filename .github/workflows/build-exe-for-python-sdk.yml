@@ -36,6 +36,7 @@ on:
         required: false
         default: ''
   pull_request:
+    branches: [master]
     types: [labeled]
 
 concurrency:

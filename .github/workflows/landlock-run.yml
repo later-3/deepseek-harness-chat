@@ -6,6 +6,7 @@ name: Landlock Run
 
 on:
   pull_request:
+    branches: [master]
     paths:
       - '.github/workflows/landlock-run.yml'
       - '.github/workflows/landlock-run-release.yml'
